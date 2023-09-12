@@ -1,0 +1,28 @@
+# This workflow runs whenever the AIO build workflow has completed. Deployment happens
+# as part of a dedicated second workflow to avoid security issues where the building would
+# otherwise occur in an authorized context where secrets could be leaked.
+#
+# More details can be found here:
+# https://securitylab.github.com/research/github-actions-preventing-pwn-requests/.
+
+name: Deploying preview to Firebase
+
+on:
+  workflow_run:
+    workflows: ['Build app for preview deployment']
+    types: [completed]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
+      - name: Configure Firebase deploy target
+        working-directory: ./
+        run: |
+          # We can use `npx` as the Firebase deploy actions uses it too.
+          npx -y firebase-tools@latest target:clear --project ${{env.PREVIEW_PROJECT}} hosting blossom
+          npx -y firebase-tools@latest target:apply --project ${{env.PREVIEW_PROJECT}} hosting blossom ${{env.PREVIEW_SITE}}
+
+      
